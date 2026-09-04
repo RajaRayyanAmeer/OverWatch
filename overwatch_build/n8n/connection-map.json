@@ -1,0 +1,22 @@
+{
+  "production_sequence": [
+    "OW-01 Scraper",
+    "OW-02 Scoring",
+    "OW-03 Content Writer",
+    "OW-04 Fact Checker",
+    "OW-05 Grouping",
+    "OW-06 Media",
+    "OW-07 Caption Generator",
+    "OW-14 Queue Manager",
+    "OW-08 Scheduler Publisher"
+  ],
+  "sidecars": [
+    "OW-09 Watchtower",
+    "OW-10 Telegram Bot",
+    "OW-11 Error Handler",
+    "OW-12 Insights",
+    "OW-13 Human Review"
+  ],
+  "utility": "OW-DB Init",
+  "important": "n8n assigns workflow IDs on import, so the master Execute Workflow nodes intentionally contain REPLACE_WITH_WORKFLOW_ID placeholders."
+}

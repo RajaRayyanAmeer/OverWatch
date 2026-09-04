@@ -1,0 +1,328 @@
+{
+  "name": "OW-00 Master Orchestrator (Smoke Test)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "67110787-944c-4f61-8cbb-22396104c10f",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-DB Init"
+        }
+      },
+      "id": "9921fccc-2a4e-48af-a385-d7ff16220f63",
+      "name": "Call OW-DB Init",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-01 Scraper"
+        }
+      },
+      "id": "7d09486f-b422-4774-825d-916f4d849b9e",
+      "name": "Call OW-01 Scraper",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-02 Scoring"
+        }
+      },
+      "id": "9d207e05-091f-45b7-8e1c-6f1a96ce906a",
+      "name": "Call OW-02 Scoring",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-03 Content Writer"
+        }
+      },
+      "id": "8c28e10a-0b19-499d-8368-17f14e3c79f7",
+      "name": "Call OW-03 Content Writer",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-04 Fact Checker"
+        }
+      },
+      "id": "4075b642-c643-43b2-b588-724b2ec88430",
+      "name": "Call OW-04 Fact Checker",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-05 Grouping"
+        }
+      },
+      "id": "8bb0abb0-42ad-4e20-a599-f470a788a66f",
+      "name": "Call OW-05 Grouping",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-06 Media"
+        }
+      },
+      "id": "f53dd317-8d48-41cd-aa12-f7702c350fe1",
+      "name": "Call OW-06 Media",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-07 Caption Generator"
+        }
+      },
+      "id": "7688845c-1103-483d-aa22-97b41f30517d",
+      "name": "Call OW-07 Caption Generator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-14 Queue Manager"
+        }
+      },
+      "id": "7ea47847-4bec-4e61-b34b-09978f030ab3",
+      "name": "Call OW-14 Queue Manager",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2700,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "OW-08 Scheduler Publisher"
+        }
+      },
+      "id": "c3f19c10-10c8-4c42-b560-31e19b854385",
+      "name": "Call OW-08 Scheduler Publisher",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3000,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Call OW-DB Init",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-DB Init": {
+      "main": [
+        [
+          {
+            "node": "Call OW-01 Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-01 Scraper": {
+      "main": [
+        [
+          {
+            "node": "Call OW-02 Scoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-02 Scoring": {
+      "main": [
+        [
+          {
+            "node": "Call OW-03 Content Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-03 Content Writer": {
+      "main": [
+        [
+          {
+            "node": "Call OW-04 Fact Checker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-04 Fact Checker": {
+      "main": [
+        [
+          {
+            "node": "Call OW-05 Grouping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-05 Grouping": {
+      "main": [
+        [
+          {
+            "node": "Call OW-06 Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-06 Media": {
+      "main": [
+        [
+          {
+            "node": "Call OW-07 Caption Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-07 Caption Generator": {
+      "main": [
+        [
+          {
+            "node": "Call OW-14 Queue Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OW-14 Queue Manager": {
+      "main": [
+        [
+          {
+            "node": "Call OW-08 Scheduler Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "23838465-b637-448d-b6a2-82e2ebfffeac",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

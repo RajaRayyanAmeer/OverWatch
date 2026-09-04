@@ -1,0 +1,111 @@
+{
+  "name": "OW-10 Telegram Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "overwatch/telegram",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "6fb62645-1562-4b3b-9c32-3d23017a5346",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "3e8a006f-ec35-4311-9724-5e2aa70f081b",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Webhook command parser. Strictly allow-listed commands. /run-cycle is the wiring point for the master workflow.",
+        "height": 230,
+        "width": 520
+      },
+      "id": "1aef30c7-7215-4208-b92c-2d3fd23b1cb9",
+      "name": "Build Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b=$json.body ?? $json; const text=String(b.message?.text ?? b.text ?? '').trim(); const m=text.match(/^\\/(status|quota|digest|pause|resume)$/i); if(!m) return [{json:{ok:false,help:'Allowed: /status /quota /digest /pause /resume'}}]; return [{json:{ok:true,cmd:m[1].toLowerCase()}}];"
+      },
+      "id": "55c7f788-b901-404b-a11a-4336b04ac2bf",
+      "name": "Allow-list Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/overwatch/scripts/agent_worker.py telegram \"{{$json.cmd}}\""
+      },
+      "id": "0b88d35d-2a24-4786-a16e-a316cf9036bc",
+      "name": "Run Telegram Command",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        650,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Allow-list Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allow-list Command": {
+      "main": [
+        [
+          {
+            "node": "Run Telegram Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "1db7365b-2747-4315-82c5-5c47073658dd",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

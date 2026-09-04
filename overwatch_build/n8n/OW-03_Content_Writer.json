@@ -1,0 +1,102 @@
+{
+  "name": "OW-03 Content Writer",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "03aefb81-d2b3-4d0a-b1cd-19bbcfa1aa37",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "993fe34a-a657-4acb-9b0c-4d38f8022bd8",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Max 15/run; research outline + 8 section calls; >=3,000 words; failed fact-checks are prioritized.",
+        "height": 230,
+        "width": 520
+      },
+      "id": "208a2951-e725-485a-a859-5965b4b55abe",
+      "name": "Build Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/overwatch/scripts/agent_worker.py write"
+      },
+      "id": "f8bcee66-74ec-47b0-8755-69df0671eb75",
+      "name": "Run Stage",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        350,
+        80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Run Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "5b45ee42-3723-4a03-9a71-8120991e824d",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

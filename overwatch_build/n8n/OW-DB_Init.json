@@ -1,0 +1,71 @@
+{
+  "name": "OW-DB Init",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "4df13b1d-32e5-4bda-ac36-d26512bddd1a",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Run once. Idempotently creates SQLite schema, data directories and config seeds.",
+        "height": 230,
+        "width": 520
+      },
+      "id": "ba316dfd-9cb0-4eb2-bc93-63ef316f1c3f",
+      "name": "Build Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/overwatch/scripts/init_db.py"
+      },
+      "id": "0a8876ac-9f82-4a5b-b7ec-c067aed28532",
+      "name": "Run Stage",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        350,
+        80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Run Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "e199211e-9141-416c-829e-33c44967b6a1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

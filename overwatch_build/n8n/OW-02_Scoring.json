@@ -1,0 +1,102 @@
+{
+  "name": "OW-02 Scoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "b30af144-fabf-40c3-82cd-b0cea4f12bc3",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "4d9a3fb6-661a-4c6b-ae6a-cbd1a58ec6a5",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Seven-KPI rubric; batches of 20; deterministic scoring gates; candidate pool creation.",
+        "height": 230,
+        "width": 520
+      },
+      "id": "3239c45f-92e4-4d5f-9d5c-d49fefbf2cfc",
+      "name": "Build Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/overwatch/scripts/agent_worker.py score"
+      },
+      "id": "d33b51f6-42aa-4b30-9829-2a3fb7c7f8a0",
+      "name": "Run Stage",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        350,
+        80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Run Stage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "d355c822-d418-4294-941e-587c26c38796",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

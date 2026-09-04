@@ -1,0 +1,111 @@
+{
+  "name": "OW-13 Human Review",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "overwatch/review",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "017989bf-2b40-41aa-a6a0-a7e278254940",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c6b61d2f-0167-411b-b9f2-b798e7a065f0",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Webhook for /review approve|reject G-...; publishing remains blocked while review_mode=on.",
+        "height": 230,
+        "width": 520
+      },
+      "id": "e0799957-5022-4215-9293-b94e81c35bd3",
+      "name": "Build Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b=$json.body ?? $json; const text=String(b.message?.text ?? b.text ?? '').trim(); const m=text.match(/^\\/review\\s+(approve|reject)\\s+(G-[A-Za-z0-9_-]+)(?:\\s+.*)?$/i); if(!m) throw new Error('Use /review approve G-... or /review reject G-...'); return [{json:{op:m[1].toLowerCase(),group_id:m[2]}}];"
+      },
+      "id": "5035ed52-439b-4c2e-acd3-7302d62cc9bb",
+      "name": "Validate Review Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/overwatch/scripts/agent_worker.py review \"{{$json.op}}\" \"{{$json.group_id}}\""
+      },
+      "id": "2989865d-27dd-494b-9baf-5bc918109d14",
+      "name": "Apply Review",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        650,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Review Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Review Command": {
+      "main": [
+        [
+          {
+            "node": "Apply Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "d1350aae-75ae-4c5b-9717-05653aea6636",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

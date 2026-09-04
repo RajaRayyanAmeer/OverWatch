@@ -1,0 +1,46 @@
+{
+  "active_theme": "NewsBlue",
+  "themes": {
+    "NewsBlue": {
+      "palette": {
+        "navy": "#0F2A43",
+        "blue": "#1D4E89",
+        "accent": "#00FFFF",
+        "paper": "#F4F7FB",
+        "ink": "#1B1B1B"
+      },
+      "type": {
+        "headline": "DejaVu Sans Bold",
+        "body": "DejaVu Sans"
+      },
+      "layout": {
+        "width": 1080,
+        "height": 1350,
+        "side_margin": 140,
+        "bottom_safe_zone": 200,
+        "header_band": 96
+      },
+      "masthead": "OVERWATCH · DAILY BRIEF"
+    },
+    "EditorialLight": {
+      "palette": {
+        "paper": "#FAF6EF",
+        "ink": "#1B1B1B",
+        "accent": "#00FFFF",
+        "grey": "#6E6A63"
+      },
+      "type": {
+        "headline": "DejaVu Serif",
+        "body": "DejaVu Sans"
+      },
+      "layout": {
+        "width": 1080,
+        "height": 1350,
+        "side_margin": 84,
+        "bottom_safe_zone": 200,
+        "header_band": 40
+      },
+      "masthead": "OVERWATCH — ISSUE"
+    }
+  }
+}

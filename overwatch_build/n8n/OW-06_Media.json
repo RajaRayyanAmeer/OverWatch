@@ -1,0 +1,126 @@
+{
+  "name": "OW-06 Media",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1278aeb-088d-4c97-8df5-d81db8ed4278",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e69d87e4-a48f-42a5-8be4-391a027a59d0",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Pillow rendering followed by Cloudflare R2 upload when configured.",
+        "height": 230,
+        "width": 520
+      },
+      "id": "f4487443-2543-45b1-bc2f-e6fd37ddc395",
+      "name": "Build Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/overwatch/scripts/agent_worker.py media"
+      },
+      "id": "77f10fb8-e193-4f59-9d38-be1563c70abf",
+      "name": "Run Stage 1",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        350,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/overwatch/scripts/agent_worker.py upload_media"
+      },
+      "id": "e9107f62-e086-4467-8c35-d90643f2bc18",
+      "name": "Run Stage 2",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        670,
+        80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Run Stage 1": {
+      "main": [
+        [
+          {
+            "node": "Run Stage 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Stage 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Run Stage 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "3f0b4442-a5cd-426e-81b3-8577714d5e64",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

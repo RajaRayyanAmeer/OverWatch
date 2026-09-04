@@ -1,0 +1,65 @@
+{
+  "name": "OW-11 Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "f39e6405-104b-46b9-9efa-7e63577daaa2",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "REPLACE_WITH_TELEGRAM_CHAT_ID",
+        "text": "={{'OverWatch ERROR\\nWorkflow: '+($json.workflow?.name ?? 'unknown')+'\\nExecution: '+($json.execution?.id ?? 'unknown')+'\\nError: '+($json.execution?.error?.message ?? $json.error?.message ?? 'unknown error')}}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disableWebPagePreview": true
+        }
+      },
+      "id": "28f861ff-cb3a-4155-bcc7-dd393e6e6ed3",
+      "name": "Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        360,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_AFTER_IMPORT",
+          "name": "OverWatch Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f9c3e06b-ed71-44d6-93f0-9f24083af256",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
