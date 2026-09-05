@@ -35,6 +35,7 @@ MEDIA = ROOT / "media"
 AUDIT = ROOT / "audit"
 BACKUPS = ROOT / "backups"
 CONFIG = Path(os.getenv("OVERWATCH_CONFIG", "/opt/overwatch/config"))
+
 if not CONFIG.exists():
     CONFIG = Path(__file__).resolve().parents[1] / "config"
 THEME_PATH = CONFIG / "theme.json"
@@ -205,17 +206,24 @@ def call_llm(c: sqlite3.Connection, prompt: str, task: str, temperature=0.2, max
     raise RuntimeError(last or "No LLM provider configured")
 
 
-FEED_TOPICS = {"world": "world", "business": "business", "tech": "tech", "science": "science",
-               "health": "health", "sports": "sports", "culture": "culture", "mixed": "world"}
-
+FEED_TOPICS = {"world": "world",
+               "business": "business",
+               "tech": "tech",
+               "science": "science",
+               "health": "health",
+               "sports": "sports",
+               "culture": "culture",
+               "mixed": "world"}
 
 def parse_feed(xml_bytes: bytes, feed_name: str, topic: str):
     root = ET.fromstring(xml_bytes)
     items = []
+
     for node in root.findall(".//item"):
         def text(tag):
             e = node.find(tag)
             return e.text.strip() if e is not None and e.text else ""
+
         title = safe_title(text("title"))
         link = text("link") or ""
         pub = text("pubDate")
@@ -223,7 +231,6 @@ def parse_feed(xml_bytes: bytes, feed_name: str, topic: str):
         items.append({"title": title, "source": feed_name, "url": link, "topic": FEED_TOPICS.get(topic, "world"),
                       "published_raw": pub})
     return items
-
 
 def parse_date(value: str | None) -> dt.datetime | None:
     if not value: return None
@@ -240,21 +247,22 @@ def parse_date(value: str | None) -> dt.datetime | None:
     except Exception:
         return None
 
-
 def feeds(c):
     raw = cfg(c, "feeds_json", "[]")
     return json.loads(raw)
-
 
 def scrape():
     started = time.time(); c = db()
     try:
         if not cfg_bool(c, "ingest_enabled", True):
             print(j({"ok": True, "skipped": True, "reason": "ingest_disabled"})); return
-        unique = 0; raw_count = 0; failures = []
+        unique = 0;
+        raw_count = 0;
+        failures = []
         max_age_h = int(cfg(c, "headline_max_age_hours", 48))
         feed_results=[]
         feed_list=feeds(c)
+        
         def fetch_feed(entry):
             feed_name,url,topic=entry
             try:
@@ -265,6 +273,7 @@ def scrape():
         with ThreadPoolExecutor(max_workers=min(16,len(feed_list) or 1)) as ex:
             futures=[ex.submit(fetch_feed,x) for x in feed_list]
             for f in as_completed(futures): feed_results.append(f.result())
+
         for (feed_name,url,topic),items,err in feed_results:
             if err:
                 failures.append({"feed":feed_name,"error":err}); continue
@@ -288,7 +297,6 @@ def scrape():
         mark_run(c,'scrape',True); c.commit(); print(j({"ok":True,"raw":raw_count,"unique":unique,"failures":failures}));
     finally: c.close()
 
-
 def tokenize_vector(text: str):
     toks=re.findall(r"[a-z0-9]{3,}", (text or '').lower())
     d={}
@@ -296,14 +304,12 @@ def tokenize_vector(text: str):
         d[t]=d.get(t,0)+1
     return d
 
-
 def cosine(a,b):
     if isinstance(a,dict) and isinstance(b,dict):
         keys=set(a)|set(b); aa=sum(a.get(k,0)*a.get(k,0) for k in keys); bb=sum(b.get(k,0)*b.get(k,0) for k in keys)
         if not aa or not bb: return 0.0
         return sum(a.get(k,0)*b.get(k,0) for k in keys)/(aa**0.5*bb**0.5)
     return 0.0
-
 
 def semantic_vector(text: str):
     # Optional local sentence-transformers; deterministic lexical fallback keeps the base image small.
@@ -315,15 +321,23 @@ def semantic_vector(text: str):
     except Exception:
         return tokenize_vector(text), 'lexical-fallback'
 
-
 def semantic_duplicate(c, headline_id, title):
     vec, model=semantic_vector(title)
     raw=vec if isinstance(vec,dict) else vec
     h=hashlib.sha256(title_hash(title).encode()).hexdigest()
     c.execute("INSERT OR IGNORE INTO embeddings(id,entity_type,entity_id,text_hash,model,embedding_json,created_at) VALUES(?,?,?,?,?,?,?)",
-              (f'E-{headline_id}', 'headline', headline_id, h, model, j(raw), iso()))
+              (f'E-{headline_id}',
+              'headline',
+              headline_id,
+              h,
+              model,
+              j(raw),
+              iso()))
+
     threshold=float(cfg(c,'semantic_dedup_threshold','0.85'))
+    
     rows=c.execute("SELECT entity_id,embedding_json FROM embeddings WHERE entity_type='headline' AND entity_id<>? ORDER BY created_at DESC LIMIT 500",(headline_id,)).fetchall()
+    
     for r in rows:
         try:
             other=json.loads(r['embedding_json']); sim=cosine(raw,other)
@@ -350,25 +364,36 @@ def score():
             print(j({"ok":True,"processed":0})); return
         rubric='''You are the SCORING AGENT of an automated news channel. Score each headline using EXACTLY this rubric. Output JSON only.\n'
 curiosity 20%; emotion 15%; relevance 15%; freshness 15%; visual 15%; authority 10%; shareability 10%. Each score 0-10. Outrage bait scores DOWN. No speculation as fact. Never invent numbers.'''
+
         for b in range(0,len(rows),20):
             batch=rows[b:b+20]
-            payload=[{"headline_id":r["id"],"title":r["title"],"source":r["source"],"topic":r["topic"],"published_at":r["published_at"]} for r in batch]
+            payload=[{"headline_id":r["id"],
+                      "title":r["title"],
+                      "source":r["source"],
+                      "topic":r["topic"],
+                      "published_at":r["published_at"]} for r in batch]
+
             prompt=rubric+"\nReturn {\"scores\":[{\"headline_id\":\"...\",\"curiosity\":0,\"emotion\":0,\"relevance\":0,\"freshness\":0,\"visual\":0,\"authority\":0,\"shareability\":0,\"rationale\":\"...\"}]}\nINPUT:\n"+j(payload)
             text,provider,model=call_llm(c,prompt,"score",0,2500)
             out=extract_json(text).get("scores",[]); by={x.get("headline_id"):x for x in out}
+            
             for r in batch:
                 s=by.get(r["id"])
                 if not s: c.execute("UPDATE headlines SET status='failed',last_error=? WHERE id=?",("missing LLM score",r["id"])); continue
                 try:
                     vals={k:max(0,min(10,float(s[k]))) for k in ("curiosity","emotion","relevance","freshness","visual","authority","shareability")}
                     total=10*(.20*vals["curiosity"]+.15*vals["emotion"]+.15*vals["relevance"]+.15*vals["freshness"]+.15*vals["visual"]+.10*vals["authority"]+.10*vals["shareability"])
-                    if r["source"] in {"BBC World","DW All","Al Jazeera","France24"}: total=min(100,total+2)
+
+                    if r["source"] in {"BBC World","DW All","Al Jazeera","France24"}:
+                        total=min(100,total+2)
+
                     passed=total>=float(cfg(c,"score_threshold","72"))
                     sid=f"S-{r['id']}"
                     c.execute("INSERT INTO scored(id,headline_id,curiosity,emotion,relevance,freshness,visual,authority,shareability,total_score,passed,rationale,rubric_version,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
                               "ON CONFLICT(headline_id) DO UPDATE SET total_score=excluded.total_score,passed=excluded.passed,rationale=excluded.rationale,rubric_version=excluded.rubric_version,status='done'",
                               (sid,r["id"],vals["curiosity"],vals["emotion"],vals["relevance"],vals["freshness"],vals["visual"],vals["authority"],vals["shareability"],total,int(passed),s.get("rationale",""),cfg(c,"rubric_version","v1.1"),"done",iso()))
                     c.execute("UPDATE headlines SET status=? WHERE id=?",("scored" if passed else "rejected",r["id"]))
+
                     if passed:
                         dup,dup_id,sim,embed_model=semantic_duplicate(c,r['id'],r['title'])
                         if dup:
@@ -386,12 +411,14 @@ curiosity 20%; emotion 15%; relevance 15%; freshness 15%; visual 15%; authority 
         # Rank among all selected candidates; enforce topic cap and max 40 deterministically.
         candidates=c.execute("SELECT s.id,s.headline_id,s.total_score,s.freshness,s.visual,h.topic,h.published_at FROM scored s JOIN headlines h ON h.id=s.headline_id WHERE s.passed=1 ORDER BY s.total_score DESC,s.freshness DESC,s.visual DESC").fetchall()
         cap=int(cfg(c,"topic_cap","8")); selected=[]; topic_counts={}
+
         for r in candidates:
             if topic_counts.get(r["topic"],0)>=cap: continue
             selected.append(r); topic_counts[r["topic"]]=topic_counts.get(r["topic"],0)+1
             if len(selected)>=int(cfg(c,"candidate_ceiling","40")): break
         # Floor relaxation only if fewer than floor exist.
         floor=int(cfg(c,"candidate_floor","30"))
+
         if len(selected)<floor:
             relaxed=float(cfg(c,"score_relaxed_threshold","65"))
             relaxed_rows=c.execute("SELECT s.id,s.headline_id,s.total_score,s.freshness,s.visual,h.topic,h.published_at FROM scored s JOIN headlines h ON h.id=s.headline_id WHERE s.total_score>=? ORDER BY s.total_score DESC,s.freshness DESC,s.visual DESC",(relaxed,)).fetchall()
@@ -401,6 +428,7 @@ curiosity 20%; emotion 15%; relevance 15%; freshness 15%; visual 15%; authority 
                 if relaxed_topic_counts.get(r["topic"],0)>=cap: continue
                 selected.append(r); chosen.add(r["headline_id"]); relaxed_topic_counts[r["topic"]]=relaxed_topic_counts.get(r["topic"],0)+1
                 if len(selected)>=floor: break
+        
         if len(selected)<floor:
             # Last-resort starvation guard: fill to the floor from highest total scores regardless of threshold.
             chosen={x["headline_id"] for x in selected}
@@ -409,6 +437,7 @@ curiosity 20%; emotion 15%; relevance 15%; freshness 15%; visual 15%; authority 
                 selected.append(r); chosen.add(r["headline_id"])
                 if len(selected)>=floor: break
         selected_ids={r["headline_id"] for r in selected}
+        
         for rank,r in enumerate(selected,1):
             c.execute("UPDATE scored SET rank=? WHERE headline_id=?",(rank,r["headline_id"]))
             audit(c,"score_select",r["headline_id"],"selected",{"rank":rank})
@@ -421,7 +450,6 @@ def fetch_source(url:str):
     r=http_get(url,headers={"User-Agent":"Mozilla/5.0 OverWatch/1.1"},timeout=20,max_bytes=2_500_000)
     text=re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>|<[^>]+>"," ",r.text if hasattr(r,'text') else r.content.decode('utf-8','replace'))
     return re.sub(r"\s+"," ",text).strip()[:120000]
-
 
 def writer():
     started=time.time(); c=db()
@@ -469,7 +497,6 @@ def writer():
         mark_run(c,'write',True); c.commit(); print(j({"ok":True,"processed":len(rows)+len(rewrites),"completed":total,"duration_ms":int((time.time()-started)*1000)}))
     finally: c.close()
 
-
 def factcheck():
     c=db();
     try:
@@ -501,17 +528,21 @@ def factcheck():
                 fc=f"FC-{r['id']}-{r['draft_rev']}"
                 c.execute("INSERT INTO fact_checks(id,article_id,claims_json,sources_checked_json,verdict,confidence,score,notes,rewrite_notes,checked_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(article_id) DO UPDATE SET claims_json=excluded.claims_json,sources_checked_json=excluded.sources_checked_json,verdict=excluded.verdict,confidence=excluded.confidence,score=excluded.score,rewrite_notes=excluded.rewrite_notes,checked_at=excluded.checked_at",
                           (fc,r['id'],j(verdicts),j(checked),overall,mean,score,"automated source comparison",j(failed),iso()))
+
                 if overall=="PASS": st="verified"; inc=0
                 elif overall=="REWRITE": st="pending_review"; inc=1
                 else: st="quarantined"; inc=0
+
                 c.execute("UPDATE articles SET status=?,failed_claims_json=?,draft_rev=draft_rev+?,updated_at=? WHERE id=?",(st,j(failed),inc,iso(),r['id']))
                 audit(c,"factcheck",r['id'],overall,{"score":score,"claims":len(verdicts),"provider":prov})
                 done+=1
+            
             except Exception as e:
-                audit(c,"factcheck",r['id'],'failed',error=str(e)); c.execute("UPDATE articles SET status='failed',updated_at=? WHERE id=?",(iso(),r['id']))
+                audit(c,"factcheck",r['id'],'failed',error=str(e));
+                c.execute("UPDATE articles SET status='failed',updated_at=? WHERE id=?",(iso(),r['id']))
+        
         mark_run(c,'factcheck',True); c.commit(); print(j({"ok":True,"processed":len(rows),"completed":done}))
     finally: c.close()
-
 
 def group():
     c=db()
@@ -528,7 +559,6 @@ def group():
         mark_run(c,'group',True); c.commit(); print(j({"ok":True,"processed":len(rows)}))
     finally: c.close()
 
-
 def render_card(im, draw, text, title, card_no, theme):
     from PIL import ImageFont
     font_base='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'; font_bold='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
@@ -537,16 +567,18 @@ def render_card(im, draw, text, title, card_no, theme):
     draw.rectangle((0,0,1080,96),fill=nav)
     draw.text((55,24),'OVERWATCH · DAILY BRIEF',font=fsmall,fill='white' if theme=='NewsBlue' else ink)
     y=140
+
     if card_no==1:
         draw.text((70,y),title[:110],font=fh,fill=white if False else nav); y=340
     lines=[]
+
     for paragraph in text.split('\n'):
         lines.extend(textwrap.wrap(paragraph,width=40) or [''])
     lines=lines[:18 if card_no!=1 else 15]
+    
     for line in lines:
         draw.text((70,y),line,font=fb,fill=ink); y += 61
     draw.text((930,1280),f'{card_no}/10',font=fsmall,fill=accent)
-
 
 def maybe_pollinations(topic,title):
     if not requests: return None
@@ -558,21 +590,29 @@ def maybe_pollinations(topic,title):
         except Exception: time.sleep(10)
     return None
 
-
 def media():
     from PIL import Image,ImageDraw
     c=db()
     try:
         rows=c.execute("SELECT g.*,a.article_md,h.title FROM groups g JOIN articles a ON a.id=g.article_id JOIN headlines h ON h.id=g.headline_id WHERE g.status='ready_for_media' LIMIT 10").fetchall()
         for r in rows:
-            out=MEDIA/r['audit_id']; out.mkdir(parents=True,exist_ok=True); article=r['article_md']
+            out=MEDIA/r['audit_id'];
+            out.mkdir(parents=True,exist_ok=True);
+            article=r['article_md']
+
             # 8 dense article segments across cards 2–9; card 1 is the cover; card 10 is CTA/sources.
-            words=article.split(); usable=max(1,math.ceil(len(words)/8)); chunks=[' '.join(words[i:i+usable]) for i in range(0,len(words),usable)]
-            while len(chunks)<8: chunks.append('')
+            words=article.split();
+            usable=max(1,math.ceil(len(words)/8));
+            chunks=[' '.join(words[i:i+usable]) for i in range(0,len(words),usable)]
+
+            while len(chunks)<8:
+                chunks.append('')
+
             chunks=chunks[:8]
             card_texts=[r['title']]+chunks+[f"Bottom line: Follow OverWatch for the next daily brief.\n\nSources: {r['url']}\n\nAI-assisted & fact-checked."]
             card_texts=card_texts[:10]
             c.execute("DELETE FROM cards WHERE group_id=?",(r['id'],))
+
             for no,chunk in enumerate(card_texts,1):
                 base=Image.new('RGB',(1080,1350),'#F4F7FB')
                 bg=maybe_pollinations(r['topic'],r['title']) if no in (1,10) else None
@@ -587,7 +627,6 @@ def media():
             c.execute("UPDATE groups SET status='ready_for_caption' WHERE id=?",(r['id'],)); audit(c,'media',r['id'],'done',{'cards':10})
         mark_run(c,'media',True); c.commit(); print(j({'ok':True,'processed':len(rows)}))
     finally: c.close()
-
 
 def r2_upload(path: Path, key: str) -> str:
     import subprocess, shutil
@@ -606,7 +645,6 @@ def r2_upload(path: Path, key: str) -> str:
         if requests: requests.put(url,data=path.read_bytes(),headers={'Content-Type':'image/png'},timeout=60).raise_for_status()
         return os.getenv('R2_PUBLIC_BASE_URL','').rstrip('/')+'/'+urllib.parse.quote(key)
 
-
 def upload_media():
     c=db()
     try:
@@ -620,7 +658,6 @@ def upload_media():
         c.commit(); print(j({'ok':True,'processed':len(rows),'uploaded':done}))
     finally: c.close()
 
-
 def caption():
     c=db()
     try:
@@ -628,25 +665,26 @@ def caption():
         for r in rows:
             p=f'''Write an Instagram caption. Output JSON {{"hook":"1-2 lines, surprising fact or question","summary":"3-5 lines","value_line":"swipe line","cta":"question|save|follow","hashtags":"3-8 tags","sources_line":"Sources: ... — verified.","full_caption":"..."}}. full_caption <= 2000 chars; exactly one CTA; no engagement-bait; no emoji spam. HEADLINE: {r['title']} SOURCE: {r['source']} ARTICLE: {r['article_md'][:5000]}'''
             text,prov,_=call_llm(c,p,'caption',0.7,1800); x=extract_json(text); full=str(x.get('full_caption','')).strip()
+
             if len(full)>2000: full=full[:1997]+'...'
             hashtags=x.get('hashtags','');
+
             c.execute("INSERT OR REPLACE INTO captions(id,group_id,hook,summary,value_line,cta,hashtags,char_count,variant,full_caption,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                       (f"CAP-{r['id']}-A",r['id'],x.get('hook'),x.get('summary'),x.get('value_line'),x.get('cta'),hashtags,len(full),'A',full,'ready',iso()))
+
             # Variant B: use a different CTA but regenerate only when requested later.
             alt_cta='Save this for later' if x.get('cta')!='save' else 'Follow for daily briefs'
             bfull=re.sub(r"What(?:'s| is) your take\?","Save this for later",full,flags=re.I)
+            
             c.execute("INSERT OR REPLACE INTO captions(id,group_id,hook,summary,value_line,cta,hashtags,char_count,variant,full_caption,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                       (f"CAP-{r['id']}-B",r['id'],x.get('hook'),x.get('summary'),x.get('value_line'),alt_cta,hashtags,len(bfull),'B',bfull[:2000],'ready',iso()))
+            
             c.execute("UPDATE groups SET status='ready_for_schedule' WHERE id=?",(r['id'],))
-            if cfg_bool(c,'review_mode',True):
-                inserted=c.execute("INSERT OR IGNORE INTO review_queue(id,group_id,status,created_at) VALUES(?,?,?,?)",(f'REV-{r['id']}',r['id'],'pending',iso())).rowcount
-                if inserted:
-                    try: telegram_send(f"OverWatch review required\nGroup: {r['id']}\nAudit: {r['audit_id']}\n\nCaption:\n{full}\n\nApprove with: /review approve {r['id']}\nReject with: /review reject {r['id']}")
-                    except Exception: pass
+            
             audit(c,'caption',r['id'],'done',{'provider':prov,'char_count':len(full)})
+        
         mark_run(c,'caption',True); c.commit(); print(j({'ok':True,'processed':len(rows)}))
     finally: c.close()
-
 
 def local_time_zone(name):
     try:
@@ -654,33 +692,45 @@ def local_time_zone(name):
         return ZoneInfo(name)
     except Exception: return dt.timezone.utc
 
-
 def queue():
     c=db()
     try:
-        current=now(); expiry_h=int(cfg(c,'freshness_expiry_hours','72')); pool_rows=c.execute("SELECT * FROM pool WHERE status='pooled'").fetchall(); expired=0
+        current=now();
+        expiry_h=int(cfg(c,'freshness_expiry_hours','72'));
+        pool_rows=c.execute("SELECT * FROM pool WHERE status='pooled'").fetchall();
+        expired=0
+
         # Expire queued posts whose headline is older than freshness limit; their groups become eligible for replacement.
         stale=c.execute("SELECT p.id,g.id group_id,h.published_at FROM posts p JOIN groups g ON g.id=p.group_id JOIN headlines h ON h.id=g.headline_id WHERE p.status='queued'").fetchall()
+        
         for x in stale:
             pub=parse_date(x['published_at']) or current
             if (current-pub).total_seconds()/3600 >= expiry_h:
                 c.execute("UPDATE posts SET status='expired',error='freshness expiry' WHERE id=?",(x['id'],)); c.execute("UPDATE groups SET status='ready_for_schedule' WHERE id=?",(x['group_id'],)); expired+=1
+        
         for r in pool_rows:
             age=(current-dt.datetime.fromisoformat(r['freshness_ts'].replace('Z','+00:00'))).total_seconds()/3600
             decay=1 if age<=12 else .75 if age<=24 else .5 if age<=48 else .25 if age<=72 else 0
+
             if decay==0 or age>=expiry_h:
                 c.execute("UPDATE pool SET status='expired',effective_priority=0,reason='freshness_expiry' WHERE id=?",(r['id'],)); expired+=1
+            
             else: c.execute("UPDATE pool SET effective_priority=priority*? WHERE id=?",(decay,r['id']))
+        
         tz=local_time_zone(cfg(c,'timezone','Asia/Karachi'))
+        
         # Queue only groups that have complete, uploaded media + caption.
         candidates=c.execute("SELECT g.id,g.headline_id FROM groups g WHERE g.status='ready_for_schedule' AND NOT EXISTS(SELECT 1 FROM posts p WHERE p.group_id=g.id)").fetchall()
         existing=c.execute("SELECT publish_at FROM posts WHERE publish_at IS NOT NULL AND status IN ('queued','published')").fetchall()
         taken=[]
+        
         for x in existing:
             try: taken.append(dt.datetime.fromisoformat(x['publish_at'].replace('Z','+00:00')))
             except: pass
+        
         max_day=int(cfg(c,'max_posts_per_day','3')); min_gap=int(cfg(c,'min_gap_hours','3'))
         assigned=0
+        
         for g in candidates:
             pool=c.execute("SELECT effective_priority FROM pool WHERE headline_id=? AND status='pooled'",(g['headline_id'],)).fetchone()
             if not pool: continue
@@ -704,19 +754,20 @@ def queue():
         mark_run(c,'queue',True); c.commit(); print(j({'ok':True,'assigned':assigned,'expired':expired}))
     finally: c.close()
 
-
 def graph_api(path, method='GET', data=None, params=None):
     version=os.getenv('META_API_VERSION','v23.0'); token=os.environ.get('META_ACCESS_TOKEN');
+    
     if not token: raise RuntimeError('META_ACCESS_TOKEN missing')
     base=f"https://graph.facebook.com/{version}/{path.lstrip('/')}"
+    
     if requests:
         if method=='GET': r=requests.get(base,params={**(params or {}),'access_token':token},timeout=60)
         else: r=requests.post(base,data={**(data or {}),'access_token':token},timeout=90)
         r.raise_for_status(); return r.json()
+    
     if method=='GET':
         qs=urllib.parse.urlencode({**(params or {}),'access_token':token}); return http_get(base+'?'+qs,timeout=60,max_bytes=2_000_000).json()
     return post_json(base,{**(data or {}),'access_token':token})
-
 
 def publish():
     c=db()
@@ -727,8 +778,12 @@ def publish():
         ig=os.environ.get('META_IG_USER_ID');
         if not ig: raise RuntimeError('META_IG_USER_ID missing')
         for p in rows:
-            group_id=p['group_id']; cards=c.execute("SELECT * FROM cards WHERE group_id=? ORDER BY card_no",(group_id,)).fetchall(); cap=c.execute("SELECT full_caption FROM captions WHERE group_id=? AND variant='A'",(group_id,)).fetchone()
+            group_id=p['group_id'];
+            cards=c.execute("SELECT * FROM cards WHERE group_id=? ORDER BY card_no",(group_id,)).fetchall();
+            cap=c.execute("SELECT full_caption FROM captions WHERE group_id=? AND variant='A'",(group_id,)).fetchone()
+
             if len(cards)!=10 or any(not r['img_url'] for r in cards) or not cap: raise RuntimeError(f"post {p['id']} incomplete media/caption")
+
             if cfg_bool(c,'review_mode',True):
                 rq=c.execute("SELECT status FROM review_queue WHERE group_id=?",(group_id,)).fetchone()
                 if not rq or rq['status']!='approved':
@@ -736,64 +791,52 @@ def publish():
                     c.execute("INSERT OR IGNORE INTO review_queue(id,group_id,status,created_at) VALUES(?,?,?,?)",(f"REV-{group_id}",group_id,'pending',iso()));
                     c.commit(); print(j({'ok':True,'waiting_review':True,'group_id':group_id})); return
             child=[]
+            
             for i,card in enumerate(cards):
                 payload={'image_url':card['img_url'],'is_carousel_item':'true'}
+
                 if i==0: payload['caption']=cap['full_caption']
                 child.append(graph_api(f"{ig}/media",'POST',payload)['id'])
+            
             parent=graph_api(f"{ig}/media",'POST',{'media_type':'CAROUSEL','children':','.join(child),'caption':cap['full_caption']})['id']
             published=graph_api(f"{ig}/media_publish",'POST',{'creation_id':parent})
             media_id=published.get('id',parent); detail=graph_api(media_id,'GET',params={'fields':'id,permalink'}); permalink=detail.get('permalink')
-            c.execute("UPDATE posts SET status='published',published_at=?,media_id=?,permalink=?,attempts=attempts+1 WHERE id=?",(iso(),media_id,permalink,p['id'])); audit(c,'publish',p['id'],'published',{'media_id':media_id,'permalink':permalink}); mark_run(c,'publish',True); c.commit()
+
+            c.execute("UPDATE posts SET status='published',published_at=?,media_id=?,permalink=?,attempts=attempts+1 WHERE id=?",(iso(),media_id,permalink,p['id']));
+            audit(c,'publish',p['id'],'published',{'media_id':media_id,'permalink':permalink});
+            mark_run(c,'publish',True);
+            c.commit()
         print(j({'ok':True,'processed':len(rows)}))
     except Exception as e:
         # Record retry without silently dropping.
         if rows:
-            p=rows[0]; attempts=int(p['attempts'])+1; st='failed' if attempts>=3 else 'queued'; c.execute("UPDATE posts SET attempts=?,error=?,status=? WHERE id=?",(attempts,str(e),st,p['id'])); audit(c,'publish',p['id'],'failed',error=str(e)); c.commit()
+            p=rows[0];
+            attempts=int(p['attempts'])+1;
+            st='failed' if attempts>=3 else 'queued';
+            c.execute("UPDATE posts SET attempts=?,error=?,status=? WHERE id=?",(attempts,str(e),st,p['id']));
+            audit(c,'publish',p['id'],'failed',error=str(e));
+            c.commit()
         print(j({'ok':False,'error':str(e)})); raise
     finally: c.close()
-
 
 def insights():
     c=db()
     try:
         ig=os.environ.get('META_IG_USER_ID')
         if not ig: print(j({'ok':True,'skipped':True,'reason':'META_IG_USER_ID missing'})); return
+
         # Metric names vary by API version; configure via META_INSIGHT_METRICS.
         metrics=os.getenv('META_INSIGHT_METRICS','reach,impressions,likes,comments,shares,saved')
         data=graph_api(f"{ig}/insights",'GET',params={'metric':metrics,'period':'day'})
-        c.execute("INSERT INTO meta_kpis(metric_date,notes,created_at) VALUES(?,?,?) ON CONFLICT(metric_date) DO UPDATE SET notes=excluded.notes",(now().date().isoformat(),j(data),iso())); mark_run(c,'insights',True); c.commit(); print(j({'ok':True,'data':data}))
+        c.execute("INSERT INTO meta_kpis(metric_date,notes,created_at) VALUES(?,?,?) ON CONFLICT(metric_date) DO UPDATE SET notes=excluded.notes",(now().date().isoformat(),j(data),iso()));
+        mark_run(c,'insights',True);
+        c.commit();
+        print(j({'ok':True,'data':data}))
     finally: c.close()
-
-
-def telegram_send(text: str):
-    token=os.getenv('TELEGRAM_BOT_TOKEN'); chat=os.getenv('TELEGRAM_CHAT_ID')
-    if not token or not chat: raise RuntimeError('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID missing')
-    url=f"https://api.telegram.org/bot{token}/sendMessage"; payload={'chat_id':chat,'text':text[:4000], 'disable_web_page_preview':True}
-    if requests: requests.post(url,json=payload,timeout=30).raise_for_status(); return
-    post_json(url,payload)
-
 
 def status_message(c):
     counts={t:c.execute(f'SELECT COUNT(*) n FROM {t}').fetchone()['n'] for t in ['headlines','scored','pool','articles','fact_checks','groups','cards','captions','posts','review_queue']}
     return 'OverWatch status\n'+ '\n'.join(f'{k}: {v}' for k,v in counts.items())
-
-
-def telegram(op):
-    c=db()
-    try:
-        if op=='status': msg=status_message(c)
-        elif op=='quota':
-            rows=c.execute("SELECT provider,COUNT(*) n,SUM(success) ok FROM llm_usage WHERE created_at>=datetime('now','-1 day') GROUP BY provider").fetchall(); msg='OverWatch quota\n'+'\n'.join(f"{r['provider']}: {r['n']} requests, {r['ok']} success" for r in rows)
-        elif op=='digest':
-            today=now().date().isoformat(); rows=c.execute("SELECT p.publish_at,h.title FROM posts p JOIN groups g ON g.id=p.group_id JOIN headlines h ON h.id=g.headline_id WHERE p.publish_at>=? ORDER BY p.publish_at LIMIT 6",(today,)).fetchall(); msg=status_message(c)+'\n\nNext slots:\n'+'\n'.join(f"{r['publish_at']} — {r['title']}" for r in rows)
-        elif op=='pause':
-            c.execute("UPDATE config SET value='false',updated_at=? WHERE key IN ('publish_enabled','ingest_enabled','llm_enabled')",(iso(),)); c.commit(); msg='OverWatch paused.'
-        elif op=='resume':
-            c.execute("UPDATE config SET value='true',updated_at=? WHERE key IN ('ingest_enabled','llm_enabled')",(iso(),)); c.commit(); msg='OverWatch resumed for ingest/LLM. Publishing remains governed by publish_enabled.'
-        else: raise ValueError('command not allow-listed')
-        telegram_send(msg); print(j({'ok':True,'command':op}))
-    finally: c.close()
-
 
 def review(op, group_id=None, note=''):
     c=db()
@@ -808,39 +851,50 @@ def review(op, group_id=None, note=''):
         c.commit(); print(j({'ok':True,'group_id':group_id,'status':status}))
     finally: c.close()
 
-
 def watchtower():
     c=db();
     try:
         alerts=[]
         counts={t:c.execute(f'SELECT COUNT(*) n FROM {t}').fetchone()['n'] for t in ['headlines','scored','pool','articles','fact_checks','groups','cards','captions','posts','review_queue']}
         cutoff=iso(now()-dt.timedelta(minutes=45)); stuck=c.execute("SELECT COUNT(*) n FROM audit_log WHERE status='processing' AND created_at<?",(cutoff,)).fetchone()['n']
+
         if stuck: alerts.append(f'{stuck} stuck processing rows >45m')
         if counts['headlines'] and counts['headlines']<int(cfg(c,'ingest_min_headlines','100')): alerts.append('ingest coverage below threshold')
-        quarantine=c.execute("SELECT COUNT(*) n FROM fact_checks WHERE verdict='QUARANTINE' AND checked_at>=datetime('now','-1 day')").fetchone()['n']; total_fc=c.execute("SELECT COUNT(*) n FROM fact_checks WHERE checked_at>=datetime('now','-1 day')").fetchone()['n']
+
+        quarantine=c.execute("SELECT COUNT(*) n FROM fact_checks WHERE verdict='QUARANTINE' AND checked_at>=datetime('now','-1 day')").fetchone()['n'];
+        total_fc=c.execute("SELECT COUNT(*) n FROM fact_checks WHERE checked_at>=datetime('now','-1 day')").fetchone()['n']
+
         if total_fc and quarantine/total_fc>0.15: alerts.append('quarantine rate >15%')
         if c.execute("SELECT COUNT(*) n FROM posts WHERE status='failed' AND attempts>=3").fetchone()['n']: alerts.append('post failed 3 times')
+
         wf=c.execute("SELECT workflow_name,last_success_at FROM workflow_runs WHERE workflow_name LIKE 'stage:%'").fetchall()
+
         for w in wf:
             if not w['last_success_at']: continue
             age=(now()-dt.datetime.fromisoformat(w['last_success_at'].replace('Z','+00:00'))).total_seconds()/3600
             if age>24: alerts.append(f"{w['workflow_name']} silent >24h")
+
         if DB.exists() and DB.stat().st_size>2*1024*1024*1024: alerts.append('database >2GB')
         usage=c.execute("SELECT provider,COUNT(*) n FROM llm_usage WHERE created_at>=datetime('now','-1 day') GROUP BY provider").fetchall();
+
         for u in usage:
             limit=1000 if u['provider']=='gemini' else 1000
             if u['n']>0.8*limit: alerts.append(f"{u['provider']} usage >80% of configured daily budget")
-        if alerts:
-            try: telegram_send('OverWatch Watchtower alert\n'+'\n'.join(alerts))
-            except Exception: pass
+
         audit(c,'watchtower','health','done',{'counts':counts,'alerts':alerts}); mark_run(c,'watchtower',True); c.commit(); print(j({'ok':True,'counts':counts,'alerts':alerts}))
     finally: c.close()
 
-
 def backup():
-    c=db(); c.execute('PRAGMA wal_checkpoint(TRUNCATE)'); c.close();
-    stamp=now().strftime('%Y%m%d_%H%M%S'); dest=BACKUPS/f'overwatch_{stamp}.db'; src=sqlite3.connect(DB); dst=sqlite3.connect(dest); src.backup(dst); dst.close(); src.close(); print(j({'ok':True,'backup':str(dest)}))
-
+    c=db();
+    c.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+    c.close();
+    stamp=now().strftime('%Y%m%d_%H%M%S'); dest=BACKUPS/f'overwatch_{stamp}.db';
+    src=sqlite3.connect(DB);
+    dst=sqlite3.connect(dest);
+    src.backup(dst);
+    dst.close();
+    src.close();
+    print(j({'ok':True,'backup':str(dest)}))
 
 def main():
     op=sys.argv[1] if len(sys.argv)>1 else 'help'
@@ -857,7 +911,6 @@ def main():
     if op=='insights': return insights()
     if op=='watchtower': return watchtower()
     if op=='backup': return backup()
-    if op=='telegram' and len(sys.argv)>=3: return telegram(sys.argv[2])
     if op=='review' and len(sys.argv)>=4: return review(sys.argv[2],sys.argv[3],sys.argv[4] if len(sys.argv)>4 else '')
     raise SystemExit('unknown stage')
 
