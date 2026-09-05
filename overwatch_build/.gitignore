@@ -1,0 +1,1 @@
+echo "F:\Overwatch\overwatch_build\.env.example" >> .gitignore
